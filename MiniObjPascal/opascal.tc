@@ -1,0 +1,404 @@
+%decls %{
+#include <map>
+#include <string>
+#include <list>
+#include <sstream>
+
+using namespace std;
+
+class Expr;
+typedef list<Expr *> ExprList;
+%}
+
+%{
+#include "opascal_tree.h"
+
+map<string, int> stable;
+%}
+
+%option lang="C++"
+
+%node OPNode %abstract %typedef
+
+%node ProgramNode OPNode = {
+	string name;
+	OPNode 	*typedef_list_node;
+	OPNode	*method_impl_list_node;
+	OPNode	*var_decl_list_node;
+	Statement	*block;
+}
+
+%node TypeDefList OPNode = {
+	OPNode	*class_decl_node;
+	OPNode	*next;
+}
+
+%node ClassDeclaration OPNode = {
+	string class_name;
+	OPNode	*inherits_node;
+	OPNode	*field_decl_list_node;
+	OPNode	*method_decl_list_node;
+}
+
+%node InheritsNode OPNode = {
+	string class_name;
+}
+
+%node FieldDeclList OPNode = {
+	OPNode	*field_decl_node;
+	OPNode	*next;
+}
+
+%node FieldDecl OPNode = {
+	string field_type;
+	string field_name;
+}
+
+%node MethodDeclList OPNode = {
+	OPNode	*method_decl_node;
+	OPNode	*next;
+}
+
+%node MethodDecl OPNode = {
+	int method_kind;
+	string method_name;
+	OPNode *method_type_node;
+	OPNode *param_decl_list_node;
+	OPNode *modifier_list_node;
+}
+
+%node ModifierList OPNode = {
+	int modifier;
+	OPNode *next;
+}
+
+%node ParameterDeclList OPNode = {
+	OPNode	*param_decl_node;
+	OPNode	*next;
+}
+
+%node ParameterDecl OPNode = {
+	string param_name;
+	OPNode *param_type_node;
+}
+
+%node MethodImplList OPNode = {
+	OPNode	*method_impl_node;
+	OPNode	*next;
+}
+
+%node MethodImpl OPNode = {
+	int method_kind;
+	string class_name;
+	string method_name;
+	OPNode	*method_type_node;
+	OPNode	*param_list_node;
+	Statement *block;
+}
+
+%node VarDeclList OPNode = {
+	OPNode	*var_decl;
+	OPNode	*next;
+}
+
+%node VarDecl OPNode = {
+	string var_name;
+	OPNode *var_type_node;
+}
+
+%node OPType OPNode %abstract
+%node IntegerType OPType
+
+%node ClassType OPType = {
+	string class_name;
+}
+
+/****Arbol de Expresion****/
+%node Expr %abstract %typedef
+
+%node BinaryExpr Expr %abstract = {
+	Expr *expr1;
+	Expr *expr2;
+}
+
+%node AddExpr BinaryExpr
+%node SubExpr BinaryExpr
+%node MultExpr BinaryExpr
+%node DivExpr BinaryExpr
+%node GTExpr BinaryExpr
+%node GTEExpr BinaryExpr
+%node LTExpr BinaryExpr
+%node LTEExpr BinaryExpr
+%node NEQExpr BinaryExpr
+%node EQExpr BinaryExpr
+
+%node NumExpr Expr = {
+	int value;
+}
+
+%node IDExpr Expr = {
+	char *var_name;
+}
+
+%node FuncCallExpr Expr = {
+	string class_name;
+	string method_name;
+	
+	ExprList *arguments;
+}
+
+%node StringExpr Expr = {
+	string value;
+}
+/*=========================*/
+
+/****Arbol de Sentencias****/
+%node Statement %abstract %typedef
+
+%node SeqStatement Statement = {
+	Statement *st1;
+	Statement *st2;
+}
+
+%node IfStatement Statement = {
+	Expr *condition;
+	Statement *st1;
+	Statement *st2;
+}
+
+%node WhileStatement Statement = {
+	Expr *condition;
+	Statement *st;
+}
+
+%node MethodCallStatement Statement = {
+	string class_name;
+	string method_name;
+	
+	ExprList *arguments;
+}
+
+%node AssignStatement Statement = {
+	char *var_name;
+	Expr *expr;
+}
+
+%node WriteStatement Statement %abstract = {
+	int statement;
+}
+
+%node WriteStatementExpr WriteStatement = {
+	Expr *expr;
+}
+
+%node WriteStatementStr WriteStatement = {
+	string value;
+}
+/*==============================*/
+
+/*%operation %virtual void process_tree(OPNode *this)*/
+%operation %virtual string gen_code(Expr *this)
+%operation %virtual string gen_statement_code(Statement *this)
+
+
+gen_code(AddExpr) {
+	string v1 = expr1->gen_code();
+	string v2 = expr2->gen_code();
+	return v1 + "+" + v2;
+}
+
+gen_code(SubExpr) {
+	string v1 = expr1->gen_code();
+	string v2 = expr2->gen_code();
+	
+	return v1 + "-" + v2;
+}
+
+gen_code(MultExpr) {
+	string v1 = expr1->gen_code();
+	string v2 = expr2->gen_code();
+	
+	return v1 + "*" + v2;
+}
+
+gen_code(DivExpr) {
+	string v1 = expr1->gen_code();
+	string v2 = expr2->gen_code();
+	
+	return v1 + "/" + v2;
+}
+
+gen_code(GTExpr) {
+	string v1 = expr1->gen_code();
+	string v2 = expr2->gen_code();
+	
+	return v1 + ">" + v2;
+}
+
+gen_code(GTEExpr) {
+	string v1 = expr1->gen_code();
+	string v2 = expr2->gen_code();
+	
+	return v1 + ">=" + v2;
+}
+
+gen_code(LTExpr) {
+	string v1 = expr1->gen_code();
+	string v2 = expr2->gen_code();
+	
+	return v1 + "<" + v2;
+}
+gen_code(LTEExpr) {
+	string v1 = expr1->gen_code();
+	string v2 = expr2->gen_code();
+	
+	return v1 + "<=" + v2;
+}
+
+gen_code(NEQExpr) {
+	string v1 = expr1->gen_code();
+	string v2 = expr2->gen_code();
+	
+	return v1 + "!=" + v2;
+}
+
+gen_code(EQExpr) {
+	string v1 = expr1->gen_code();
+	string v2 = expr2->gen_code();
+	
+	return v1 + "==" + v2;
+}
+
+gen_code(NumExpr) {
+	ostringstream out;
+	out << value;
+	return out.str();
+}
+
+gen_code(StringExpr) {
+	return "\"" + value + "\"";
+}
+
+gen_code(IDExpr) {
+	return var_name;
+}
+
+gen_code(FuncCallExpr) {
+	ostringstream out;
+	
+	out << class_name << "_" << method_name << "(";
+	
+	if (arguments != NULL) {
+		ExprList::iterator it = arguments->begin();
+
+		while (it != arguments->end()) {
+			Expr *expr = *it;
+			out << expr->gen_code();
+			it++;
+			if (it != arguments->end())
+				out << ",";
+		}
+	}
+
+	out << ")";
+	
+	return out.str();
+}
+
+/* Code generation for statement */
+gen_statement_code(SeqStatement) {
+	string code1 = st1->gen_statement_code();
+	string code2 = st2->gen_statement_code();
+
+	return code1 + code2;
+}
+
+gen_statement_code(AssignStatement) {
+	string lval = expr->gen_code();
+	ostringstream out;
+	
+	out << var_name << " = " << lval << ";" << endl;
+	return out.str();
+}
+
+gen_statement_code(MethodCallStatement) {
+	ostringstream out;
+	
+	out << class_name << "_" << method_name << "(";
+	
+	if (arguments != NULL) {
+		ExprList::iterator it = arguments->begin();
+
+		while (it != arguments->end()) {
+			Expr *expr = *it;
+			out << expr->gen_code();
+			it++;
+			if (it != arguments->end())
+				out << ",";
+		}
+	}
+
+	out << ");" << endl;
+	
+	return out.str();
+}
+
+gen_statement_code(IfStatement) {
+	string val = condition->gen_code();
+	string code1 = st1->gen_statement_code();
+	string code2 = st2 != NULL? st2->gen_statement_code() : "";
+	ostringstream out;
+	
+	out << "if (" << val << ") {" << endl;
+	out << code1;
+	out << "}" << endl;
+	if (st2 != NULL) {
+		out << "else {" << endl;
+		out << code2;
+		out << "}" << endl;
+	}
+	return out.str();
+}
+
+gen_statement_code(WhileStatement) {
+	string cond_str = condition->gen_code();
+	string code = st->gen_statement_code();
+	ostringstream out;
+	
+	out << "while (" << cond_str << ") {" << endl;
+	out << code;
+	out << "}" << endl;
+	
+	return out.str();
+}
+
+gen_statement_code(WriteStatementExpr) {
+	string val = expr->gen_code();
+	ostringstream out;
+	
+	switch (statement) {
+		case 0:
+			out << "printf(\"%d\", " << val << ");" << endl;
+			break;
+		case 1:
+			out << "printf(\"%d\\n\", " << val << ");" << endl;
+			break;
+	}
+	return out.str();
+}
+
+gen_statement_code(WriteStatementStr) {
+	ostringstream out;
+	
+	switch (statement) {
+		case 0:
+			out << "printf(\"" << value << "\");" << endl;
+			break;
+		case 1:
+			out << "printf(\"" << value << "\\n\");" << endl;
+			break;
+	}
+	
+	return out.str();
+}
+
