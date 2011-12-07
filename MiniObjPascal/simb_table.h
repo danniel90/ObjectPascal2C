@@ -13,21 +13,22 @@ enum TypeID { Int_Type, Class_Type };
 
 class ClassDef;
 
-struct Type {
+struct Type
+{
 	TypeID 	type_id;
 	ClassDef *class_def;
 };
 
 struct ParameterDef
 {
-		ParameterDef(string name, Type type)
-		{
-			parameter_name = name;
-			parameter_type = type;
-		}
+	ParameterDef(string name, Type type)
+	{
+		parameter_name = name;
+		parameter_type = type;
+	}
 
-		string parameter_name;
-		Type parameter_type;
+	string parameter_name;
+	Type parameter_type;
 };
 
 typedef list<ParameterDef *> ParameterDefList;
@@ -35,30 +36,26 @@ typedef map<string, ParameterDef *> ParameterDefMap;
 
 class MethodDef
 {
-	public:
-		MethodDef(string name)
-		{
-			method_name = name;
+public:
+	MethodDef(string name) { method_name = name; }
+	~MethodDef()
+	{
+		if (method_parameter_list != 0) {
+			FreeList(method_parameter_list);
+			delete method_parameter_list;
 		}
-
-		~MethodDef()
-		{
-			if (method_parameter_list != 0) {
-				FreeList(method_parameter_list);
-				delete method_parameter_list;
-			}
 			
-			if (method_parameter_map != 0) {
-				method_parameter_map->clear();
-				delete method_parameter_map;
-			}
+		if (method_parameter_map != 0) {
+			method_parameter_map->clear();
+			delete method_parameter_map;
 		}
+	}
 
-		string method_name;
-		Type method_return_type;
-		ParameterDefList *method_parameter_list;
-		ParameterDefMap *method_parameter_map;
-		Statement *method_body;
+	string method_name;
+	Type method_return_type;
+	ParameterDefList *method_parameter_list;
+	ParameterDefMap *method_parameter_map;
+	Statement *method_body;
 };
 
 typedef list<MethodDef *> MethodDefList;
@@ -82,31 +79,28 @@ typedef map<string, VariableDef *> VariableDefMap;
 
 class ClassDef
 {
-	public:
-		ClassDef()
-		{
-			name = "";
-		}
+public:
+	ClassDef() { name = ""; }
 
-		ClassDef(string name)
-		{
-			ClassDef();
-			this->name = name;
-		}
+	ClassDef(string name)
+	{
+		ClassDef();
+		this->name = name;
+	}
 
-		~ClassDef()
-		{
-			FreeList(&field_def_list);	
-			FreeList(&method_def_list);
-			field_def_map.clear();
-			method_def_map.clear();
-		}
+	~ClassDef()
+	{
+		FreeList(&field_def_list);	
+		FreeList(&method_def_list);
+		field_def_map.clear();
+		method_def_map.clear();
+	}
 
-		string name;
-		VariableDefList field_def_list;
-		MethodDefList   method_def_list;
-		VariableDefMap  field_def_map;
-		MethodDefMap 	method_def_map;
+	string name;
+	VariableDefList field_def_list;
+	MethodDefList   method_def_list;
+	VariableDefMap  field_def_map;
+	MethodDefMap 	method_def_map;
 };
 
 typedef map<string, ClassDef *> ClassDefMap;

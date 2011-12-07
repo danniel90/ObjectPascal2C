@@ -3,6 +3,7 @@
 #include <string>
 #include <list>
 #include <sstream>
+#include <iostream>
 
 using namespace std;
 
@@ -14,6 +15,7 @@ typedef list<Expr *> ExprList;
 #include "opascal_tree.h"
 
 map<string, int> stable;
+string class_name_actual = "";
 %}
 
 %option lang="C++"
@@ -28,6 +30,7 @@ map<string, int> stable;
 	Statement	*block;
 }
 
+//------------------TypeDefList------------------
 %node TypeDefList OPNode = {
 	OPNode	*class_decl_node;
 	OPNode	*next;
@@ -54,6 +57,8 @@ map<string, int> stable;
 	string field_name;
 }
 
+
+//------------------MethodDeclList------------------
 %node MethodDeclList OPNode = {
 	OPNode	*method_decl_node;
 	OPNode	*next;
@@ -82,6 +87,7 @@ map<string, int> stable;
 	OPNode *param_type_node;
 }
 
+//------------------MethodImplList------------------
 %node MethodImplList OPNode = {
 	OPNode	*method_impl_node;
 	OPNode	*next;
@@ -96,6 +102,7 @@ map<string, int> stable;
 	Statement *block;
 }
 
+//------------------VarDeclList------------------
 %node VarDeclList OPNode = {
 	OPNode	*var_decl;
 	OPNode	*next;
@@ -112,6 +119,191 @@ map<string, int> stable;
 %node ClassType OPType = {
 	string class_name;
 }
+
+//......gen_opnode_code()......
+%operation %virtual string gen_op_code(OPNode *this)
+
+//VarDeclList
+gen_op_code(ClassType) {
+	return class_name;
+}
+
+gen_op_code(IntegerType) {
+	return "int";
+}
+
+gen_op_code(VarDecl) {
+	string type_name = var_type_node->gen_op_code();
+	string variable;
+
+	if (type_name != "int")
+		variable = "*" + var_name;
+	else
+		variable = var_name;
+
+	ostringstream out;
+	out << type_name << " " << variable << ";" << endl;
+
+	return out.str();
+}
+
+gen_op_code(VarDeclList) {
+	string var1 = var_decl->gen_op_code();
+	string var2 = "";
+
+	if (next != NULL)
+		var2 = next->gen_op_code();
+	return var1 + var2;
+}
+
+//MethodImplList
+gen_op_code(MethodImpl) {
+	string ret = "";
+	string param_list = "";
+	string stmnts = block->gen_statement_code();
+
+	if (param_list_node != NULL)
+		param_list = param_list_node->gen_op_code();
+
+	if (method_kind == 1){//method
+		string return_type = method_type_node->gen_op_code();
+		ret =	return_type + " " + class_name + "_" + method_name + "(" + param_list + ")" + "{\n" +
+				stmnts +
+			"}\n";
+	} else {//procedure
+		ret =	"void " + class_name + "_" + method_name + "(" + param_list + ")" + "{\n" +
+				stmnts +
+			"}\n";
+	}
+	return ret;
+}
+
+gen_op_code(MethodImplList) {
+	string method1 = method_impl_node->gen_op_code();
+	string method2 = "";
+
+	if (next != NULL)
+		method2 = next->gen_op_code();
+	return method1 + method2;
+}
+
+//MethodDeclList
+gen_op_code(MethodDeclList) {
+	string method1 = method_decl_node->gen_op_code();
+	string method2 = "";
+
+	if (next != NULL)
+		method2 = next->gen_op_code();
+
+	return method1 + method2;
+}
+
+gen_op_code(MethodDecl) {
+	string ret = "";
+	string param_list = "";
+	string modifiers = "";
+
+	if (param_decl_list_node != NULL)
+		param_list = param_decl_list_node->gen_op_code();
+
+	if (modifier_list_node != NULL)
+		modifiers = modifier_list_node->gen_op_code();//queeeeeeeeeee
+
+	if (method_kind == 1){//function
+		string return_type = method_type_node->gen_op_code();
+		ret = return_type + " " + class_name_actual + "_" + method_name + "(" + param_list + ");\n";
+	} else {//procedure
+		ret = "void " + class_name_actual + "_" + method_name + "(" + param_list + ");\n";
+	}
+	return ret;
+}
+
+gen_op_code(ModifierList) {
+	if (modifier)
+		return "virtual";
+	else
+		return "override";
+}
+
+gen_op_code(ParameterDeclList) {
+	string param1 = param_decl_node->gen_op_code();
+	string param2 = "";
+
+	if (next != NULL)
+		param2 = ", " + next->gen_op_code();
+
+	return param1 + param2;
+}
+
+gen_op_code(ParameterDecl) {
+	string param_type = param_type_node->gen_op_code();
+	return param_type + " " + param_name;
+}
+
+//TypeDefList
+gen_op_code(TypeDefList) {
+	string class1 = class_decl_node->gen_op_code();
+	string class2 = "";
+
+	if (next != NULL)
+		class2 = next->gen_op_code();
+
+	return class1 + class2;
+}
+
+gen_op_code(ClassDeclaration) {
+	class_name_actual = class_name;
+
+	string ret = "";
+	string inherits = "";
+	string fields = "";
+	string methods = "";
+
+	if (inherits_node != NULL)
+		inherits = inherits_node->gen_op_code() + " parent;\n";
+	if (field_decl_list_node != NULL)
+		fields = field_decl_list_node->gen_op_code();
+	if (method_decl_list_node != NULL)
+		methods = method_decl_list_node->gen_op_code();
+
+	ret =	"typedef struct " + class_name + " {\n" +
+			inherits +
+			fields +
+		"} " + class_name + ";\n\n" +
+		methods + "\n\n";
+
+	class_name_actual ="";
+
+	return ret;
+}
+
+gen_op_code(InheritsNode) {
+	return class_name;
+}
+
+gen_op_code(FieldDeclList) {
+	string field1 = field_decl_node->gen_op_code();
+	string field2 = "";
+
+	if (next != NULL)
+		field2 = next->gen_op_code();
+
+	return field1 + field2;
+}
+
+gen_op_code(FieldDecl) {
+	string field_type;
+	string field_name;
+	return field_type + " " + field_name + ";//FieldDecl\n";
+}
+
+gen_op_code(ProgramNode) {
+	return "";
+}
+
+//------------------Expr------------------
+/****Traduccion de op a c****/
+
 
 /****Arbol de Expresion****/
 %node Expr %abstract %typedef
@@ -150,55 +342,10 @@ map<string, int> stable;
 %node StringExpr Expr = {
 	string value;
 }
-/*=========================*/
 
-/****Arbol de Sentencias****/
-%node Statement %abstract %typedef
+//......gen_code()......
 
-%node SeqStatement Statement = {
-	Statement *st1;
-	Statement *st2;
-}
-
-%node IfStatement Statement = {
-	Expr *condition;
-	Statement *st1;
-	Statement *st2;
-}
-
-%node WhileStatement Statement = {
-	Expr *condition;
-	Statement *st;
-}
-
-%node MethodCallStatement Statement = {
-	string class_name;
-	string method_name;
-	
-	ExprList *arguments;
-}
-
-%node AssignStatement Statement = {
-	char *var_name;
-	Expr *expr;
-}
-
-%node WriteStatement Statement %abstract = {
-	int statement;
-}
-
-%node WriteStatementExpr WriteStatement = {
-	Expr *expr;
-}
-
-%node WriteStatementStr WriteStatement = {
-	string value;
-}
-/*==============================*/
-
-/*%operation %virtual void process_tree(OPNode *this)*/
 %operation %virtual string gen_code(Expr *this)
-%operation %virtual string gen_statement_code(Statement *this)
 
 
 gen_code(AddExpr) {
@@ -305,7 +452,58 @@ gen_code(FuncCallExpr) {
 	return out.str();
 }
 
+//------------------Statements------------------
+
+/****Arbol de Sentencias****/
+%node Statement %abstract %typedef
+
+%node SeqStatement Statement = {
+	Statement *st1;
+	Statement *st2;
+}
+
+%node IfStatement Statement = {
+	Expr *condition;
+	Statement *st1;
+	Statement *st2;
+}
+
+%node WhileStatement Statement = {
+	Expr *condition;
+	Statement *st;
+}
+
+%node MethodCallStatement Statement = {
+	string class_name;
+	string method_name;
+	
+	ExprList *arguments;
+}
+
+%node AssignStatement Statement = {
+	char *var_name;
+	Expr *expr;
+}
+
+%node WriteStatement Statement %abstract = {
+	int statement;
+}
+
+%node WriteStatementExpr WriteStatement = {
+	Expr *expr;
+}
+
+%node WriteStatementStr WriteStatement = {
+	string value;
+}
+
+//......gen_statement_code()......
+
+/*%operation %virtual void process_tree(OPNode *this)*/
+
 /* Code generation for statement */
+%operation %virtual string gen_statement_code(Statement *this)
+
 gen_statement_code(SeqStatement) {
 	string code1 = st1->gen_statement_code();
 	string code2 = st2->gen_statement_code();

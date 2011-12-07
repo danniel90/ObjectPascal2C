@@ -45,8 +45,12 @@ int main(int argc, char **argv)
 	yyparse();
 	if (program_node != NULL) {
 		cout << "#include <stdio.h>" << endl << endl;
+		if (program_node->typedef_list_node != NULL)	 cout << "//typedef_list\n" << program_node->typedef_list_node->gen_op_code() << endl << endl;
+		if (program_node->method_impl_list_node != NULL) cout << "//method_impl_list\n" << program_node->method_impl_list_node->gen_op_code() << endl << endl;
+		if (program_node->var_decl_list_node != NULL)	 cout << "//var_decl_list\n" << program_node->var_decl_list_node->gen_op_code() << endl << endl;
 		cout << "int main() {" << endl;
 		cout << program_node->block->gen_statement_code();
 		cout << "}" << endl;
 	}
 }
+

@@ -4,13 +4,13 @@ type
   TEllipse = class
 	xr: Integer;
 	yr: Integer;
-    procedure Draw; virtual;
+	procedure Draw; virtual;
 	procedure Hide; virtual;
 	procedure Rotate(angle: Integer); virtual;
   end;
   
   TCircle = class (TEllipse)
-    procedure Rotate(angle: Integer); override;
+	procedure Rotate(angle: Integer); override;
 	function Center: Integer; virtual;
   end;
  
@@ -63,3 +63,4 @@ begin
 	ellipse.Free;
 	circle.Free;
 end. 
+

@@ -16,14 +16,17 @@ int yyerror(const char *msg);
 %union {
 	OPNode	*op_node;
 	Statement *statement_node;
+
 	ExprList *expr_list;
 	Expr *expr_node;
+
 	int ivalue;
 	char *svalue;
 }
 
 %token<ivalue> NUM
 %token<svalue> ID STRING_LITERAL
+
 %token OP_ASSIGN GT GTE LT LTE NEQ EQ
 %token KW_PROGRAM KW_VAR KW_INTEGER KW_TYPE KW_CLASS KW_VIRTUAL KW_OVERRIDE KW_PROCEDURE KW_FUNCTION 
 %token KW_BEGIN KW_END KW_IF KW_THEN KW_ELSE KW_WHILE KW_DO KW_WRITE KW_WRITELN
@@ -50,7 +53,7 @@ program:			KW_PROGRAM ID ';'
 ;
 
 typedef_section:		KW_TYPE typedef_declaration_list				{ $$ = $2; }
-				| /* Nada */							{ $$ = NULL; }
+				|/* Nada */							{ $$ = NULL; }
 ;
 
 typedef_declaration_list:	typedef_declaration_list typedef_declaration			{
@@ -210,7 +213,7 @@ expr:		expra GT expra			{ $$ = new GTExpr($1, $3); }
 		|expra LTE expra		{ $$ = new LTEExpr($1, $3); }
 		|expra NEQ expra		{ $$ = new NEQExpr($1, $3); }
 		|expra EQ expra			{ $$ = new EQExpr($1, $3); }
-		|expra
+		|expra				{ $$ = $1; }
 ;
 
 expra:		expra '+' term			{ $$ = new AddExpr($1, $3); }
