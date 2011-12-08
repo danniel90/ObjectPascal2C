@@ -57,11 +57,12 @@ typedef_section:		KW_TYPE typedef_declaration_list				{ $$ = $2; }
 ;
 
 typedef_declaration_list:	typedef_declaration_list typedef_declaration			{
-												  TypeDefList *list = new TypeDefList($2, NULL);
+												  /*TypeDefList *list = new TypeDefList($2, NULL);
 												  $$ = $1;
-												  ((TypeDefList *)$$)->next = list;
+												  ((TypeDefList *)$$)->next = list;*/
+												  $$ = new TypeDefList($1, $2);
 												}
-				|typedef_declaration						{ $$ = new TypeDefList($1, NULL); }
+				|typedef_declaration						{ $$ = $1; /*$$ = new TypeDefList($1, NULL);*/ }
 ;
 
 typedef_declaration:		ID '=' KW_CLASS opt_inherits
@@ -78,14 +79,15 @@ field_declaration_list:		var_declaration_list						{ $$ = $1; }
 				|/* Nada */							{ $$ = NULL; }
 ;
 
-method_declaration_list:	method_declaration_list method_declaration			{
+method_declaration_list:	method_declaration_list method_declaration			{/*
 												  MethodDeclList *list = new MethodDeclList($2, NULL);
 												  if ($1 == NULL)	
 													$$ = list;
 												  else {
 													$$ = $1;
 													((MethodDeclList *)$$)->next = list;
-												  }
+												  }*/
+												  $$ = new MethodDeclList($1, $2);
 												}
 				|/* Nada */							{ $$ = NULL; }
 ;
@@ -98,12 +100,13 @@ opt_modifiers:			modifiers							{ $$ = $1; }
 				|/* Nada */							{ $$ = NULL; }
 ;
 
-modifiers:			modifiers modifier ';'						{
+modifiers:			/*modifiers modifier ';'						{
 												  ModifierList *list = new ModifierList($2, NULL);
 			  									  $$ = $1;
 												  ((ModifierList *)$$)->next = list;
 		   										}
-				|modifier ';'							{ $$ = new ModifierList($1, NULL); }
+				|modifier ';'							{ $$ = new ModifierList($1, NULL); }*/
+				modifier ';'							{ $$ = new ModifierList($1, NULL); }
 ;
 
 modifier:			KW_VIRTUAL							{ $$ = 0; }
@@ -115,11 +118,12 @@ opt_parameters:			'(' parameter_list ')'						{ $$ = $2; }
 ;
 
 parameter_list:			parameter_list ',' parameter_decl				{
-												  ParameterDeclList *list = new ParameterDeclList($3, NULL);
+												  /*ParameterDeclList *list = new ParameterDeclList($3, NULL);
 												  $$ = $1;
-												  ((ParameterDeclList *)$$)->next = list;
+												  ((ParameterDeclList *)$$)->next = list;*/
+												  $$ = new ParameterDeclList($1, $3);
 												}
-				|parameter_decl							{ $$ = new ParameterDeclList($1, NULL); }
+				|parameter_decl							{ $$ = $1;/*$$ = new ParameterDeclList($1, NULL);*/ }
 ;
 
 parameter_decl:			ID ':' type							{ $$ = new ParameterDecl($1, $3); }
@@ -130,11 +134,12 @@ method_impl_section:		method_impl_list						{ $$ = $1; }
 ;
 
 method_impl_list:		method_impl_list method_impl					{
-												  MethodImplList *list = new MethodImplList($2, NULL);
+												  /*MethodImplList *list = new MethodImplList($2, NULL);
 												  $$ = $1;
-												  ((MethodImplList *)$$)->next = list;
+												  ((MethodImplList *)$$)->next = list;*/
+												  $$ = new MethodImplList($1, $2);
 												}
-				|method_impl							{ $$ = new MethodImplList($1, NULL); }
+				|method_impl							{ $$ = $1;/*$$ = new MethodImplList($1, NULL);*/ }
 ;
 
 method_impl:			KW_PROCEDURE ID '.' ID opt_parameters ';' block ';'		{ $$ = new MethodImpl(0, $2, $4, NULL, $5, $7 ); }
@@ -146,11 +151,12 @@ var_section:			KW_VAR var_declaration_list					{ $$ = $2; }
 ;
 
 var_declaration_list:		var_declaration_list var_declaration				{
-												  VarDeclList *list = new VarDeclList($2, NULL);
+												  /*VarDeclList *list = new VarDeclList($2, NULL);
 												  $$ = $1;
-												  ((VarDeclList *)$$)->next = list;
+												  ((VarDeclList *)$$)->next = list;*/
+												  $$ = new VarDeclList($1, $2);
 												}
-				|var_declaration						{ $$ = new VarDeclList($1, NULL); }
+				|var_declaration						{ $$ = $1;/*$$ = new VarDeclList($1, NULL);*/ }
 ;
 
 var_declaration:		ID ':' type ';'							{ $$ = new VarDecl($1, $3); }

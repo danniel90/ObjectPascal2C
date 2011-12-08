@@ -151,8 +151,9 @@ gen_op_code(VarDeclList) {
 	string var1 = var_decl->gen_op_code();
 	string var2 = "";
 
-	if (next != NULL)
+	if(next!= NULL)
 		var2 = next->gen_op_code();
+
 	return var1 + var2;
 }
 
@@ -189,8 +190,11 @@ gen_op_code(MethodImplList) {
 
 //MethodDeclList
 gen_op_code(MethodDeclList) {
-	string method1 = method_decl_node->gen_op_code();
+	string method1 = "";
 	string method2 = "";
+
+	if (method_decl_node != NULL)
+		method1 = method_decl_node->gen_op_code();
 
 	if (next != NULL)
 		method2 = next->gen_op_code();
@@ -282,23 +286,15 @@ gen_op_code(InheritsNode) {
 }
 
 gen_op_code(FieldDeclList) {
-	string field1 = field_decl_node->gen_op_code();
-	string field2 = "";
-
-	if (next != NULL)
-		field2 = next->gen_op_code();
-
-	return field1 + field2;
+	return "//FieldDeclList\n";
 }
 
 gen_op_code(FieldDecl) {
-	string field_type;
-	string field_name;
-	return field_type + " " + field_name + ";//FieldDecl\n";
+	return "//FieldDecl\n";
 }
 
 gen_op_code(ProgramNode) {
-	return "";
+	return "PROGRAMNODEEEEEEE";
 }
 
 //------------------Expr------------------
