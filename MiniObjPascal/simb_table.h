@@ -85,25 +85,32 @@ class ClassDef
 {
 public:
 	string		name;
-	string		base;
+//	string		base;
+	ClassDef	*base;
 	VariableDefList *field_def_list;
 	VariableDefMap  *field_def_map;
+
 	MethodDefList   *method_def_list;
+	MethodDefList   *virtualmethod_def_list;
+	MethodDefList   *overridemethod_def_list;
+
 	MethodDefMap 	*method_def_map;
 
-	ClassDef() { name = base = ""; }
+	ClassDef() { name = ""; base = NULL; }
 
 	ClassDef(string name)
 	{
 		//ClassDef();
 		this->name = name;
-		base = "";
+		base = NULL;
 	}
 
 	~ClassDef()
 	{
 		FreeList(field_def_list);	
 		FreeList(method_def_list);
+		FreeList(virtualmethod_def_list);
+		FreeList(overridemethod_def_list);
 		field_def_map->clear();
 		method_def_map->clear();
 	}

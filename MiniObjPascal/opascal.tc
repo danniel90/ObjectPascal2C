@@ -24,6 +24,9 @@ ParameterDefMap *params_map = NULL;
 
 
 MethodDefList *methods_list = NULL;
+MethodDefList *virtualmethods_list = NULL;
+MethodDefList *overridemethods_list = NULL;
+
 MethodDefMap *methods_map = NULL;
 
 VariableDefList *variables_list = NULL;
@@ -38,7 +41,7 @@ ClassDefMap classes_map;
 %node OPNode %abstract %typedef
 
 %node ProgramNode OPNode = {
-	string name;
+	string	name;
 	OPNode 	*typedef_list_node;
 	OPNode	*method_impl_list_node;
 	OPNode	*var_decl_list_node;
@@ -148,7 +151,6 @@ gen_op_code(IntegerType) {
 }
 
 gen_op_code(VarDecl) {
-cout << "VarDecl" << endl;
 	string type_name = var_type_node->gen_op_code();
 	string variable;
 
@@ -209,7 +211,6 @@ gen_op_code(MethodDeclList) {
 }
 
 gen_op_code(MethodDecl) {
-	cout << "MethodDecl" << endl;
 	params_list = new ParameterDefList();
 	params_map = new ParameterDefMap();
 
@@ -230,7 +231,7 @@ gen_op_code(MethodDecl) {
 
 	ret = return_type + " " + m_name + "(" + class_name_actual + " *this, " + param_list + ");\n";
 
-	if ((methods_list != NULL) && (methods_map != NULL)){
+	if (methods_map != NULL) {
 		Type type;
 		if (method_type_node != NULL){
 			if (method_type_node->getKind() == ClassType_kind){
@@ -245,22 +246,27 @@ gen_op_code(MethodDecl) {
 			type.type_id = Void_Type;
 		}
 
+		MethodDef *method = new MethodDef(method_name);
+
 		enum Modifier mod = None;
 		if (modifier_list_node != NULL){
-			if (modifiers == "virtual")
+			if (modifiers == "virtual"){
 				mod = Virtual;
-			else
+				virtualmethods_list->push_back(method);
+			} else {
 				mod = Override;
-		}
+				overridemethods_list->push_back(method);
+			}
+		} else
+			methods_list->push_back(method);
 
-		MethodDef *method = new MethodDef(method_name);
 		method->method_return_type = type;
 		method->modifier = mod;
 		method->method_parameter_list = params_list;
 		method->method_parameter_map = params_map;
 		method->method_body = NULL;
 
-		methods_list->push_back(method);
+
 		(*methods_map)[method_name] = method;
 	}
 
@@ -314,8 +320,6 @@ gen_op_code(ParameterDecl) {//--------------------------------------------------
 
 //MethodImplList
 gen_op_code(MethodImpl) {
-	cout << "MethodImpl" << endl;
-
 	string ret = "";
 	string param_list = "";
 	string stmnts = block->gen_statement_code();
@@ -376,21 +380,20 @@ gen_op_code(ClassDeclaration) {
 
 	if (method_decl_list_node != NULL) {
 		methods_list = new MethodDefList();
+		virtualmethods_list = new MethodDefList();
+		overridemethods_list = new MethodDefList();
+
 		methods_map = new MethodDefMap();
 
 		methods = method_decl_list_node->gen_op_code();
 	}
 
-	ret =	"typedef struct " + class_name + " {\n" +
-			inherits +
-			fields +
-		"} " + class_name + ";\n\n" +
-		methods + "\n\n";
-
-	class_name_actual ="";
-	
+//----------------Recoleccion estructuras de datos----------------	
 	ClassDef *class_def = new ClassDef(class_name);
-	class_def->base = inherits;
+
+	if (inherits_node != NULL){
+		class_def->base = classes_map[inherits];
+	}
 
 	if ((variables_list != NULL) && (variables_map != NULL)){ 
 		class_def->field_def_list = new VariableDefList();
@@ -405,20 +408,54 @@ gen_op_code(ClassDeclaration) {
 		variables_map = NULL;
 	}
 
-	if ((methods_list != NULL) && (methods_map != NULL)) {
+	if (methods_map != NULL) {
 		class_def->method_def_list = new MethodDefList();
+		class_def->virtualmethod_def_list = new MethodDefList();
+		class_def->overridemethod_def_list = new MethodDefList();
+
 		class_def->method_def_map = new MethodDefMap();
 
 		*(class_def->method_def_list) = *methods_list;
+		*(class_def->virtualmethod_def_list) = *virtualmethods_list;
+		*(class_def->overridemethod_def_list) = *overridemethods_list;
+
 		*(class_def->method_def_map) = *methods_map;
 
 		delete methods_list;
+		delete virtualmethods_list;
+		delete overridemethods_list;
+
 		delete methods_map;
 		methods_list = NULL;
+		virtualmethods_list = NULL;
+		overridemethods_list = NULL;
+
 		methods_map = NULL;
 	}
 
 	classes_map[class_name] = class_def;
+//----------------Implementacion VMT----------------
+	MethodDefList *lista_virtuals = new MethodDefList();
+	MethodDefList *lista_overrides = new MethodDefList();
+	MethodDefList *lista_normales = new MethodDefList();
+
+	ClassDef *clase_actual = classes_map[class_name];
+
+	string vmt_var = "";
+
+	if (lista_virtuals != NULL){
+		vmt_var = "void **vmt;\n";
+	}
+
+
+	ret =	"typedef struct " + class_name + " {\n" +
+			inherits +
+			fields +
+			vmt_var +
+		"} " + class_name + ";\n\n" +
+		methods + "\n\n";
+
+	class_name_actual ="";
 
 	return ret;
 }
