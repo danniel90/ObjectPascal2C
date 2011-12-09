@@ -13,9 +13,22 @@ typedef list<Expr *> ExprList;
 
 %{
 #include "opascal_tree.h"
+#include "simb_table.h"
+
 
 map<string, int> stable;
 string class_name_actual = "";
+
+ParameterDefList *params_list = NULL;
+ParameterDefMap *params_map = NULL;
+
+
+MethodDefList *methods_list = NULL;
+MethodDefMap *methods_map = NULL;
+
+VariableDefList *variables_list = NULL;
+VariableDefMap *variables_map = NULL;
+
 %}
 
 %option lang="C++"
@@ -157,37 +170,6 @@ gen_op_code(VarDeclList) {
 	return var1 + var2;
 }
 
-//MethodImplList
-gen_op_code(MethodImpl) {
-	string ret = "";
-	string param_list = "";
-	string stmnts = block->gen_statement_code();
-
-	if (param_list_node != NULL)
-		param_list = param_list_node->gen_op_code();
-
-	if (method_kind == 1){//method
-		string return_type = method_type_node->gen_op_code();
-		ret =	return_type + " " + class_name + "_" + method_name + "(" + param_list + ")" + "{\n" +
-				stmnts +
-			"}\n";
-	} else {//procedure
-		ret =	"void " + class_name + "_" + method_name + "(" + param_list + ")" + "{\n" +
-				stmnts +
-			"}\n";
-	}
-	return ret;
-}
-
-gen_op_code(MethodImplList) {
-	string method1 = method_impl_node->gen_op_code();
-	string method2 = "";
-
-	if (next != NULL)
-		method2 = next->gen_op_code();
-	return method1 + method2;
-}
-
 //MethodDeclList
 gen_op_code(MethodDeclList) {
 	string method1 = "";
@@ -203,6 +185,11 @@ gen_op_code(MethodDeclList) {
 }
 
 gen_op_code(MethodDecl) {
+	cout << "MethodDecl" << endl;
+	params_list = new ParameterDefList();
+	params_map = new ParameterDefMap();
+
+	string m_name = class_name_actual + "_" + method_name;
 	string ret = "";
 	string param_list = "";
 	string modifiers = "";
@@ -213,12 +200,51 @@ gen_op_code(MethodDecl) {
 	if (modifier_list_node != NULL)
 		modifiers = modifier_list_node->gen_op_code();//queeeeeeeeeee
 
-	if (method_kind == 1){//function
-		string return_type = method_type_node->gen_op_code();
-		ret = return_type + " " + class_name_actual + "_" + method_name + "(" + param_list + ");\n";
-	} else {//procedure
-		ret = "void " + class_name_actual + "_" + method_name + "(" + param_list + ");\n";
+	string return_type = "void";
+	if (method_kind == 1)
+		return_type = method_type_node->gen_op_code();
+
+	ret = return_type + " " + m_name + "(" + class_name_actual + " *this, " + param_list + ");\n";
+
+	if ((methods_list != NULL) && (methods_map != NULL)){
+		Type type;
+		if (method_type_node != NULL){
+			if (method_type_node->getKind() == ClassType_kind){
+				type.class_id = return_type;
+				type.type_id = Class_Type;
+			} else {
+				type.class_id = "int";
+				type.type_id = Int_Type;
+			}
+		} else {
+			type.class_id = "void";
+			type.type_id = Void_Type;
+		}
+
+		enum Modifier mod = None;
+		if (modifier_list_node != NULL){
+			if (modifiers == "virtual")
+				mod = Virtual;
+			else
+				mod = Override;
+		}
+
+		MethodDef *method = new MethodDef(method_name);
+		method->method_return_type = type;
+		method->modifier = mod;
+		method->method_parameter_list = params_list;
+		method->method_parameter_map = params_map;
+		method->method_body = NULL;
+
+		methods_list->push_back(method);
+		(*methods_map)[method_name] = method;
 	}
+
+	delete params_list;
+	delete params_map;
+	params_list = NULL;
+	params_map = NULL;
+
 	return ret;
 }
 
@@ -239,9 +265,61 @@ gen_op_code(ParameterDeclList) {
 	return param1 + param2;
 }
 
-gen_op_code(ParameterDecl) {
+gen_op_code(ParameterDecl) {//-----------------------------------------------------------------
 	string param_type = param_type_node->gen_op_code();
+
+	if ((params_list != NULL) && (params_map != NULL)){ //si no es nulo entonces estamos en declaracion de variables
+		Type type;
+		if (param_type_node->getKind() == ClassType_kind){
+			param_name = "*" + param_name;
+			type.class_id = param_type;
+			type.type_id = Class_Type;
+		} else {
+			type.class_id = "entero";
+			type.type_id = Int_Type;
+		}
+
+		ParameterDef *param = new ParameterDef(param_name, type);
+
+		params_list->push_back(param);
+		(*params_map)[param_name] = param;
+	}
+
 	return param_type + " " + param_name;
+}
+
+//MethodImplList
+gen_op_code(MethodImpl) {
+	cout << "MethodImpl" << endl;
+
+	string ret = "";
+	string param_list = "";
+	string stmnts = block->gen_statement_code();
+
+	string standard_this = class_name + " *this";
+	if (param_list_node != NULL){
+		param_list = param_list_node->gen_op_code();
+		standard_this = class_name + " *this, ";
+	}
+
+	string return_type = "void";
+	if (method_kind == 1)//method
+		return_type = method_type_node->gen_op_code();
+
+	ret =	return_type + " " + class_name + "_" + method_name + "(" + standard_this + param_list + ")" + "{\n" +
+			stmnts +
+		"}\n";
+
+	return ret;
+}
+
+gen_op_code(MethodImplList) {
+	string method1 = method_impl_node->gen_op_code();
+	string method2 = "";
+
+	if (next != NULL)
+		method2 = next->gen_op_code();
+	return method1 + method2;
 }
 
 //TypeDefList
@@ -267,8 +345,17 @@ gen_op_code(ClassDeclaration) {
 		inherits = inherits_node->gen_op_code() + " parent;\n";
 	if (field_decl_list_node != NULL)
 		fields = field_decl_list_node->gen_op_code();
-	if (method_decl_list_node != NULL)
+	if (method_decl_list_node != NULL) {
+		methods_list = new MethodDefList();
+		methods_map = new MethodDefMap();
+
 		methods = method_decl_list_node->gen_op_code();
+
+		delete methods_list;
+		delete methods_map;
+		methods_list = NULL;
+		methods_map = NULL;
+	}
 
 	ret =	"typedef struct " + class_name + " {\n" +
 			inherits +
@@ -511,7 +598,11 @@ gen_statement_code(AssignStatement) {
 	string lval = expr->gen_code();
 	ostringstream out;
 	
-	out << var_name << " = " << lval << ";" << endl;
+	if (string(var_name) == "Result")
+		out << "return " << lval << ";" << endl;
+	else
+		out << var_name << " = " << lval << ";" << endl;
+
 	return out.str();
 }
 
