@@ -29,6 +29,8 @@ MethodDefMap *methods_map = NULL;
 VariableDefList *variables_list = NULL;
 VariableDefMap *variables_map = NULL;
 
+ClassDefMap classes_map;
+
 %}
 
 %option lang="C++"
@@ -146,6 +148,7 @@ gen_op_code(IntegerType) {
 }
 
 gen_op_code(VarDecl) {
+cout << "VarDecl" << endl;
 	string type_name = var_type_node->gen_op_code();
 	string variable;
 
@@ -156,6 +159,27 @@ gen_op_code(VarDecl) {
 
 	ostringstream out;
 	out << type_name << " " << variable << ";" << endl;
+	
+	if ((variables_list != NULL) && (variables_map != NULL)){
+		Type type;
+		if (var_type_node != NULL){
+			if (var_type_node->getKind() == ClassType_kind){
+				type.class_id = type_name;
+				type.type_id = Class_Type;
+			} else {
+				type.class_id = "int";
+				type.type_id = Int_Type;
+			}
+		} else {
+			type.class_id = "void";
+			type.type_id = Void_Type;
+		}
+
+		VariableDef *var = new VariableDef(variable, type);
+
+		variables_list->push_back(var);
+		(*variables_map)[variable] = var;
+	}
 
 	return out.str();
 }
@@ -343,18 +367,18 @@ gen_op_code(ClassDeclaration) {
 
 	if (inherits_node != NULL)
 		inherits = inherits_node->gen_op_code() + " parent;\n";
-	if (field_decl_list_node != NULL)
+	if (field_decl_list_node != NULL) {
+		variables_list = new VariableDefList();
+		variables_map = new VariableDefMap();
+
 		fields = field_decl_list_node->gen_op_code();
+	}
+
 	if (method_decl_list_node != NULL) {
 		methods_list = new MethodDefList();
 		methods_map = new MethodDefMap();
 
 		methods = method_decl_list_node->gen_op_code();
-
-		delete methods_list;
-		delete methods_map;
-		methods_list = NULL;
-		methods_map = NULL;
 	}
 
 	ret =	"typedef struct " + class_name + " {\n" +
@@ -364,6 +388,37 @@ gen_op_code(ClassDeclaration) {
 		methods + "\n\n";
 
 	class_name_actual ="";
+	
+	ClassDef *class_def = new ClassDef(class_name);
+	class_def->base = inherits;
+
+	if ((variables_list != NULL) && (variables_map != NULL)){ 
+		class_def->field_def_list = new VariableDefList();
+		class_def->field_def_map = new VariableDefMap();
+
+		*(class_def->field_def_list) = *variables_list;
+		*(class_def->field_def_map) = *variables_map;
+
+		delete variables_list;
+		delete variables_map;
+		variables_list = NULL;
+		variables_map = NULL;
+	}
+
+	if ((methods_list != NULL) && (methods_map != NULL)) {
+		class_def->method_def_list = new MethodDefList();
+		class_def->method_def_map = new MethodDefMap();
+
+		*(class_def->method_def_list) = *methods_list;
+		*(class_def->method_def_map) = *methods_map;
+
+		delete methods_list;
+		delete methods_map;
+		methods_list = NULL;
+		methods_map = NULL;
+	}
+
+	classes_map[class_name] = class_def;
 
 	return ret;
 }
@@ -381,7 +436,28 @@ gen_op_code(FieldDecl) {
 }
 
 gen_op_code(ProgramNode) {
-	return "PROGRAMNODEEEEEEE";
+	ostringstream out;
+	if (typedef_list_node != NULL)
+		out	<< "//typedef_list" << endl
+			<< typedef_list_node->gen_op_code() << endl << endl;
+
+	if (method_impl_list_node != NULL)
+		out	<< "//method_impl_list" << endl
+			<< method_impl_list_node->gen_op_code() << endl << endl;
+
+	if (var_decl_list_node != NULL)
+		out	<< "//var_decl_list" << endl
+			<< var_decl_list_node->gen_op_code() << endl << endl;
+
+	/*map<string, ClassDef*>::iterator it;
+	cout << "Classes en classes_map:" << endl;
+
+	for (it = classes_map.begin(); it != classes_map.end(); it++)
+		cout << (*it).first << endl;
+
+	cout << "Fin de contenido de classes_map" << endl;*/
+
+	return out.str();
 }
 
 //------------------Expr------------------

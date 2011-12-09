@@ -13,7 +13,7 @@ enum TypeID { Int_Type, Class_Type, Void_Type };
 
 enum Modifier { Virtual, Override, None };
 
-class ClassDef;
+//class ClassDef;
 
 struct Type
 {
@@ -86,25 +86,26 @@ class ClassDef
 public:
 	string		name;
 	string		base;
-	VariableDefList field_def_list;
-	VariableDefMap  field_def_map;
-	MethodDefList   method_def_list;
-	MethodDefMap 	method_def_map;
+	VariableDefList *field_def_list;
+	VariableDefMap  *field_def_map;
+	MethodDefList   *method_def_list;
+	MethodDefMap 	*method_def_map;
 
-	ClassDef() { name = ""; }
+	ClassDef() { name = base = ""; }
 
 	ClassDef(string name)
 	{
-		ClassDef();
+		//ClassDef();
 		this->name = name;
+		base = "";
 	}
 
 	~ClassDef()
 	{
-		FreeList(&field_def_list);	
-		FreeList(&method_def_list);
-		field_def_map.clear();
-		method_def_map.clear();
+		FreeList(field_def_list);	
+		FreeList(method_def_list);
+		field_def_map->clear();
+		method_def_map->clear();
 	}
 };
 

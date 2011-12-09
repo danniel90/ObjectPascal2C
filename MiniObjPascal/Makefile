@@ -3,6 +3,7 @@ OPASCAL_GRAMMAR	:= opascal_grammar.cpp
 OPASCAL_TREE_S	:= opascal_tree.cpp
 OPASCAL_TREE_H	:= opascal_tree.h
 OPASCAL_TOKENS	:= opascal_tokens.h
+
 TARGET  := opascal
 SRCS    := ${OPASCAL_TREE_S} ${OPASCAL_GRAMMAR} ${OPASCAL_LEXER} main.cpp
 OBJS    := ${SRCS:.cpp=.o} 
