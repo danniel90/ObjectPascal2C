@@ -3,6 +3,7 @@
 
 #include <string>
 #include <list>
+#include <vector>
 #include <map>
 #include "opascal_tree.h"
 #include "util.h"
@@ -63,6 +64,7 @@ public:
 };
 
 typedef list<MethodDef *> MethodDefList;
+typedef vector<MethodDef *> MethodDefVector;
 typedef map<string, MethodDef *> MethodDefMap;
 
 class VariableDef
@@ -85,8 +87,8 @@ class ClassDef
 {
 public:
 	string		name;
-//	string		base;
-	ClassDef	*base;
+	string		base;
+//	ClassDef	*base;
 	VariableDefList *field_def_list;
 	VariableDefMap  *field_def_map;
 
@@ -96,13 +98,24 @@ public:
 
 	MethodDefMap 	*method_def_map;
 
-	ClassDef() { name = ""; base = NULL; }
+	ClassDef() {
+		name = "";
+		base = "";//NULL;
+		field_def_list = NULL;
+		field_def_map  = NULL;
+
+		method_def_list = NULL;
+		virtualmethod_def_list = NULL;
+		overridemethod_def_list = NULL;
+
+		method_def_map = NULL;
+	}
 
 	ClassDef(string name)
 	{
 		//ClassDef();
 		this->name = name;
-		base = NULL;
+		base = "";
 	}
 
 	~ClassDef()

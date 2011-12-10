@@ -43,11 +43,9 @@ begin
 end;
 
 var
-  primero : a;
   ellipse: TEllipse;
   circle: TCircle;
   p: TEllipse;
-  ultimo : b;
 
 
 begin

@@ -34,6 +34,19 @@ VariableDefMap *variables_map = NULL;
 
 ClassDefMap classes_map;
 
+void getVectorVirtuales(MethodDefVector *vector, string nom_clase){
+	ClassDef *clase = classes_map[nom_clase];
+
+	if (clase->base.size() > 0) {
+		ClassDef *css = classes_map[clase->base];
+		getVectorVirtuales(vector, clase->base);
+	}
+
+	list<MethodDef*>::iterator it;
+	for (it = clase->virtualmethod_def_list->begin() ; it != clase->virtualmethod_def_list->end(); it++) {
+		vector->push_back(*it);
+	}
+}
 %}
 
 %option lang="C++"
@@ -162,7 +175,7 @@ gen_op_code(VarDecl) {
 	ostringstream out;
 	out << type_name << " " << variable << ";" << endl;
 	
-	if ((variables_list != NULL) && (variables_map != NULL)){
+	if (variables_map != NULL){
 		Type type;
 		if (var_type_node != NULL){
 			if (var_type_node->getKind() == ClassType_kind){
@@ -219,8 +232,11 @@ gen_op_code(MethodDecl) {
 	string param_list = "";
 	string modifiers = "";
 
-	if (param_decl_list_node != NULL)
+	string this_param = class_name_actual + " *this";
+	if (param_decl_list_node != NULL){
 		param_list = param_decl_list_node->gen_op_code();
+		this_param += ",";
+	}
 
 	if (modifier_list_node != NULL)
 		modifiers = modifier_list_node->gen_op_code();//queeeeeeeeeee
@@ -229,7 +245,7 @@ gen_op_code(MethodDecl) {
 	if (method_kind == 1)
 		return_type = method_type_node->gen_op_code();
 
-	ret = return_type + " " + m_name + "(" + class_name_actual + " *this, " + param_list + ");\n";
+	ret = return_type + " " + m_name + "(" + this_param + param_list + ");\n";
 
 	if (methods_map != NULL) {
 		Type type;
@@ -246,18 +262,19 @@ gen_op_code(MethodDecl) {
 			type.type_id = Void_Type;
 		}
 
-		MethodDef *method = new MethodDef(method_name);
+		string c_method_name = class_name_actual + "_" + method_name;
+		MethodDef *method = new MethodDef(c_method_name);
 
 		enum Modifier mod = None;
 		if (modifier_list_node != NULL){
-			if (modifiers == "virtual"){
+			if (modifiers.compare("virtual")){//modifiers == "virtual"){
 				mod = Virtual;
 				virtualmethods_list->push_back(method);
 			} else {
 				mod = Override;
 				overridemethods_list->push_back(method);
 			}
-		} else
+		} else 
 			methods_list->push_back(method);
 
 		method->method_return_type = type;
@@ -267,7 +284,8 @@ gen_op_code(MethodDecl) {
 		method->method_body = NULL;
 
 
-		(*methods_map)[method_name] = method;
+
+		(*methods_map)[c_method_name] = method;
 	}
 
 	delete params_list;
@@ -369,8 +387,11 @@ gen_op_code(ClassDeclaration) {
 	string fields = "";
 	string methods = "";
 
-	if (inherits_node != NULL)
-		inherits = inherits_node->gen_op_code() + " parent;\n";
+	string base = "";
+	if (inherits_node != NULL){
+		base = inherits_node->gen_op_code();
+		inherits = base + " parent;\n";
+	}
 	if (field_decl_list_node != NULL) {
 		variables_list = new VariableDefList();
 		variables_map = new VariableDefMap();
@@ -391,16 +412,13 @@ gen_op_code(ClassDeclaration) {
 //----------------Recoleccion estructuras de datos----------------	
 	ClassDef *class_def = new ClassDef(class_name);
 
-	if (inherits_node != NULL){
-		class_def->base = classes_map[inherits];
+	if (inherits_node != NULL) {
+		class_def->base = base;
 	}
 
-	if ((variables_list != NULL) && (variables_map != NULL)){ 
-		class_def->field_def_list = new VariableDefList();
-		class_def->field_def_map = new VariableDefMap();
-
-		*(class_def->field_def_list) = *variables_list;
-		*(class_def->field_def_map) = *variables_map;
+	if (variables_map != NULL) { 
+		class_def->field_def_list = new VariableDefList(*variables_list);
+		class_def->field_def_map = new VariableDefMap(*variables_map);
 
 		delete variables_list;
 		delete variables_map;
@@ -409,17 +427,11 @@ gen_op_code(ClassDeclaration) {
 	}
 
 	if (methods_map != NULL) {
-		class_def->method_def_list = new MethodDefList();
-		class_def->virtualmethod_def_list = new MethodDefList();
-		class_def->overridemethod_def_list = new MethodDefList();
+		class_def->method_def_list = new MethodDefList(*methods_list);
+		class_def->virtualmethod_def_list = new MethodDefList(*virtualmethods_list);
+		class_def->overridemethod_def_list = new MethodDefList(*overridemethods_list);
 
-		class_def->method_def_map = new MethodDefMap();
-
-		*(class_def->method_def_list) = *methods_list;
-		*(class_def->virtualmethod_def_list) = *virtualmethods_list;
-		*(class_def->overridemethod_def_list) = *overridemethods_list;
-
-		*(class_def->method_def_map) = *methods_map;
+		class_def->method_def_map = new MethodDefMap(*methods_map);
 
 		delete methods_list;
 		delete virtualmethods_list;
@@ -435,29 +447,87 @@ gen_op_code(ClassDeclaration) {
 
 	classes_map[class_name] = class_def;
 //----------------Implementacion VMT----------------
-	MethodDefList *lista_virtuals = new MethodDefList();
-	MethodDefList *lista_overrides = new MethodDefList();
-	MethodDefList *lista_normales = new MethodDefList();
+	MethodDefVector *vector_virtuals = new MethodDefVector();
+	MethodDefVector *vector_overrides = new MethodDefVector();
+	MethodDefVector *vector_normales = new MethodDefVector();
 
 	ClassDef *clase_actual = classes_map[class_name];
 
+	getVectorVirtuales(vector_virtuals, class_name);
+
 	string vmt_var = "";
 
-	if (lista_virtuals != NULL){
+	if (vector_virtuals->size() > 0)
 		vmt_var = "void **vmt;\n";
+
+	ostringstream out;
+
+	out	<< "typedef struct " << class_name << " {" << endl
+		<< inherits
+		<< fields
+		<< vmt_var 
+		<< "} " << class_name << ";" << endl
+		<< methods <<  endl << endl;
+
+
+	out	<< clase_actual->name << " *" << clase_actual->name << "_Create(){" << endl
+		<< clase_actual->name << " *tmp = (" << clase_actual->name << "*) malloc(sizeof(" << clase_actual->name << "));" << endl;
+
+	if (inherits_node != NULL){
+		out	<< clase_actual->base << " *e = " << clase_actual->base << "_Create();" << endl
+			<< "tmp->parent = *e;" << endl
+			<< clase_actual->base << "_Free(e);" << endl;
 	}
 
+	out	<< endl;
 
-	ret =	"typedef struct " + class_name + " {\n" +
-			inherits +
-			fields +
-			vmt_var +
-		"} " + class_name + ";\n\n" +
-		methods + "\n\n";
+	if (vector_virtuals->size() > 0){
+		out	<< "tmp->vmt = malloc (" << vector_virtuals->size() << "*sizeof(void*));" << endl;
 
-	class_name_actual ="";
+		for (int x = 0; x < vector_virtuals->size(); x++){
+			out	<< "tmp->vmt[" << x << "] = " << vector_virtuals->at(x)->method_name << ";" << endl;
+		}
+	}
 
-	return ret;
+	out	<< endl;
+
+	if (field_decl_list_node != NULL){
+		list<VariableDef*>::iterator it;
+
+		for (it = clase_actual->field_def_list->begin(); it != clase_actual->field_def_list->end(); it++){
+			VariableDef *tmp = *it;
+			if (tmp->variable_type.type_id == Class_Type)
+				out	<< tmp->variable_name << " = NULL;" << endl;
+			else
+				out	<< tmp->variable_name << " = 0;" << endl;
+		}
+	}
+
+	out	<< endl
+		<< "return tmp;" << endl
+		<< "}" << endl << endl;
+
+
+	out	<< "void " << clase_actual->name << "_Free(" << clase_actual->name << " *this){" << endl;
+
+	if (field_decl_list_node != NULL){
+		list<VariableDef*>::iterator it;
+
+		for (it = clase_actual->field_def_list->begin(); it != clase_actual->field_def_list->end(); it++){
+			VariableDef *tmp = *it;
+			if (tmp->variable_type.type_id == Class_Type)
+				out	<< "free(this->" << tmp->variable_name << ");" << endl;
+		}
+	}
+
+	if (vector_virtuals->size() > 0)
+		out	<< "free(this->vmt);" << endl;
+
+	out	<< "}" << endl << endl;
+
+	class_name_actual = "";
+
+	return out.str();
 }
 
 gen_op_code(InheritsNode) {
@@ -485,14 +555,6 @@ gen_op_code(ProgramNode) {
 	if (var_decl_list_node != NULL)
 		out	<< "//var_decl_list" << endl
 			<< var_decl_list_node->gen_op_code() << endl << endl;
-
-	/*map<string, ClassDef*>::iterator it;
-	cout << "Classes en classes_map:" << endl;
-
-	for (it = classes_map.begin(); it != classes_map.end(); it++)
-		cout << (*it).first << endl;
-
-	cout << "Fin de contenido de classes_map" << endl;*/
 
 	return out.str();
 }
