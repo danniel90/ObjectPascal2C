@@ -42,13 +42,14 @@ class MethodDef
 {
 public:
 	string		 method_name;
+	string		 method_short_name;
 	Type		 method_return_type;
 	Modifier	 modifier;
 	ParameterDefList *method_parameter_list;
 	ParameterDefMap	 *method_parameter_map;
 	Statement	 *method_body;
 
-	MethodDef(string name) { method_name = name; }
+	MethodDef(string name, string name2) { method_name = name; method_short_name = name2; }
 	~MethodDef()
 	{
 		if (method_parameter_list != 0) {

@@ -34,19 +34,23 @@ VariableDefMap *variables_map = NULL;
 
 ClassDefMap classes_map;
 
-void getVectorVirtuales(MethodDefVector *vector, string nom_clase){
+void getVectorVirtuales(MethodDefVector *vector, MethodDefMap *mapa, string nom_clase) {
 	ClassDef *clase = classes_map[nom_clase];
 
 	if (clase->base.size() > 0) {
 		ClassDef *css = classes_map[clase->base];
-		getVectorVirtuales(vector, clase->base);
+		getVectorVirtuales(vector, mapa,clase->base);
 	}
 
 	list<MethodDef*>::iterator it;
-	for (it = clase->virtualmethod_def_list->begin() ; it != clase->virtualmethod_def_list->end(); it++) {
+	for (it = clase->virtualmethod_def_list->begin() ; it != clase->virtualmethod_def_list->end(); it++){
 		vector->push_back(*it);
+		MethodDef *tmp = *it;
+		cout << tmp->method_name << endl;
+//		(*mapa)[*it] = NULL;
 	}
 }
+
 %}
 
 %option lang="C++"
@@ -263,7 +267,7 @@ gen_op_code(MethodDecl) {
 		}
 
 		string c_method_name = class_name_actual + "_" + method_name;
-		MethodDef *method = new MethodDef(c_method_name);
+		MethodDef *method = new MethodDef(c_method_name, method_name);
 
 		enum Modifier mod = None;
 		if (modifier_list_node != NULL){
@@ -282,8 +286,6 @@ gen_op_code(MethodDecl) {
 		method->method_parameter_list = params_list;
 		method->method_parameter_map = params_map;
 		method->method_body = NULL;
-
-
 
 		(*methods_map)[c_method_name] = method;
 	}
@@ -448,12 +450,14 @@ gen_op_code(ClassDeclaration) {
 	classes_map[class_name] = class_def;
 //----------------Implementacion VMT----------------
 	MethodDefVector *vector_virtuals = new MethodDefVector();
-	MethodDefVector *vector_overrides = new MethodDefVector();
-	MethodDefVector *vector_normales = new MethodDefVector();
+	MethodDefMap *map_virtuals = new MethodDefMap();
+
+/*	MethodDefVector *vector_overrides = new MethodDefVector();
+	MethodDefVector *vector_normales = new MethodDefVector();*/
 
 	ClassDef *clase_actual = classes_map[class_name];
 
-	getVectorVirtuales(vector_virtuals, class_name);
+	getVectorVirtuales(vector_virtuals, map_virtuals, class_name);
 
 	string vmt_var = "";
 
@@ -523,7 +527,8 @@ gen_op_code(ClassDeclaration) {
 	if (vector_virtuals->size() > 0)
 		out	<< "free(this->vmt);" << endl;
 
-	out	<< "}" << endl << endl;
+	out	<< "free(this);" << endl
+		<< "}" << endl << endl;
 
 	class_name_actual = "";
 
