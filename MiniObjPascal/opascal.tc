@@ -47,7 +47,7 @@ void getVectorVirtuales(MethodDefVector *vector, MethodDefMap *mapa, string nom_
 		vector->push_back(*it);
 		MethodDef *tmp = *it;
 		cout << tmp->method_name << endl;
-//		(*mapa)[*it] = NULL;
+		(*mapa)[tmp->method_name] = (*clase->method_def_map)[tmp->method_name];
 	}
 }
 
@@ -266,8 +266,8 @@ gen_op_code(MethodDecl) {
 			type.type_id = Void_Type;
 		}
 
-		string c_method_name = class_name_actual + "_" + method_name;
-		MethodDef *method = new MethodDef(c_method_name, method_name);
+//		string c_method_name = class_name_actual + "_" + method_name;
+		MethodDef *method = new MethodDef(method_name);
 
 		enum Modifier mod = None;
 		if (modifier_list_node != NULL){
@@ -282,12 +282,14 @@ gen_op_code(MethodDecl) {
 			methods_list->push_back(method);
 
 		method->method_return_type = type;
+		method->classOwner = class_name_actual;
 		method->modifier = mod;
 		method->method_parameter_list = params_list;
 		method->method_parameter_map = params_map;
 		method->method_body = NULL;
 
-		(*methods_map)[c_method_name] = method;
+//		(*methods_map)[c_method_name] = method;
+		(*methods_map)[method_name] = method;
 	}
 
 	delete params_list;
@@ -452,12 +454,18 @@ gen_op_code(ClassDeclaration) {
 	MethodDefVector *vector_virtuals = new MethodDefVector();
 	MethodDefMap *map_virtuals = new MethodDefMap();
 
-/*	MethodDefVector *vector_overrides = new MethodDefVector();
-	MethodDefVector *vector_normales = new MethodDefVector();*/
-
 	ClassDef *clase_actual = classes_map[class_name];
 
 	getVectorVirtuales(vector_virtuals, map_virtuals, class_name);
+
+
+	if (clase_actual->overridemethod_def_list != NULL){
+		list<MethodDef*>::iterator it;
+		for (it = clase_actual->overridemethod_def_list->begin(); it != clase_actual->overridemethod_def_list->end(); it++){
+			MethodDef *tmp = *it;
+			(*map_virtuals)[tmp->method_name] = tmp;
+		}
+	}
 
 	string vmt_var = "";
 
@@ -489,7 +497,9 @@ gen_op_code(ClassDeclaration) {
 		out	<< "tmp->vmt = malloc (" << vector_virtuals->size() << "*sizeof(void*));" << endl;
 
 		for (int x = 0; x < vector_virtuals->size(); x++){
-			out	<< "tmp->vmt[" << x << "] = " << vector_virtuals->at(x)->method_name << ";" << endl;
+			MethodDef *metodo_overrided = (*map_virtuals)[vector_virtuals->at(x)->method_name];
+			string c_method_name = metodo_overrided->classOwner + "_" + vector_virtuals->at(x)->method_name;
+			out	<< "tmp->vmt[" << x << "] = " << c_method_name << ";" << endl;
 		}
 	}
 
