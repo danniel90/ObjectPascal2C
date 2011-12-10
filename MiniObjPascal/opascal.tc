@@ -37,17 +37,17 @@ VariableDefMap vars_map;
 
 ClassDefMap classes_map;
 
-void getVectorVirtuales(MethodDefVector *vector, MethodDefMap *mapa, string nom_clase, int idx) {
+void getVectorVirtuales(MethodDefVector *vector, MethodDefMap *mapa, string nom_clase, int &idx) {
 	ClassDef *clase = classes_map[nom_clase];
 
-	if (clase->base.size() > 0) {
-		ClassDef *css = classes_map[clase->base];
-		getVectorVirtuales(vector, mapa,clase->base, idx);
-	}
+	if (clase->base.size() > 0)
+		getVectorVirtuales(vector, mapa, clase->base, idx);
 
 	list<MethodDef*>::iterator it;
+	cout << "Clase = " << clase->name << endl;
 	for (it = clase->virtualmethod_def_list->begin() ; it != clase->virtualmethod_def_list->end(); it++){
 		MethodDef *tmp = *it;
+		cout << "Method = " << tmp->method_name << " | idx = " << idx << endl;
 		tmp->index = idx++;
 		vector->push_back(tmp);
 		(*mapa)[tmp->method_name] = (*clase->method_def_map)[tmp->method_name];
@@ -486,6 +486,9 @@ gen_op_code(ClassDeclaration) {
 		list<MethodDef*>::iterator it;
 		for (it = clase_actual->overridemethod_def_list->begin(); it != clase_actual->overridemethod_def_list->end(); it++){
 			MethodDef *tmp = *it;
+
+			MethodDef *toOvr = (*map_virtuals)[tmp->method_name];
+			tmp->index = toOvr->index;
 			cout << tmp->method_name << endl;
 			(*map_virtuals)[tmp->method_name] = tmp;
 		}
@@ -535,9 +538,9 @@ gen_op_code(ClassDeclaration) {
 		for (it = clase_actual->field_def_list->begin(); it != clase_actual->field_def_list->end(); it++){
 			VariableDef *tmp = *it;
 			if (tmp->variable_type.type_id == Class_Type)
-				out	<< tmp->variable_name << " = NULL;" << endl;
+				out	<< "tmp->" << tmp->variable_name << " = NULL;" << endl;
 			else
-				out	<< tmp->variable_name << " = 0;" << endl;
+				out	<< "tmp->" << tmp->variable_name << " = 0;" << endl;
 		}
 	}
 
@@ -829,14 +832,14 @@ gen_statement_code(MethodCallStatement) {
 
 	ClassDef *clss = classes_map[var->variable_type.class_id];
 	MethodDef *mthd = (*clss->all_method_def_map)[method_name];
-	
-	MethodDefMap::iterator it;
-	for (it = clss->method_def_map->begin(); it != clss->method_def_map->end(); it++){
-		cout << (*it).first << endl;
-		cout << (*it).second << endl;
-	}
 
-	if (mthd != NULL)
+	if (mthd != NULL){
+		MethodDefMap::iterator it;
+		for (it = clss->all_method_def_map->begin(); it != clss->all_method_def_map->end(); it++){
+			cout << (*it).first << endl;
+			cout << (*it).second->index << endl;
+		}
+
 	if (mthd->modifier == Virtual) {
 		cout << "1 vr name = " << mthd->method_name << endl;
 		string ret_type = "void";
@@ -865,12 +868,23 @@ gen_statement_code(MethodCallStatement) {
 
 		out << ");" << endl;
 	} else if (mthd->modifier == Override) {
-		cout << "ovr" << endl;
-		out << var->variable_type.class_id << "_" << method_name << "(";
+		cout << "2 ovr name = " << mthd->method_name << endl;
+		string ret_type = "";
+
+		if (mthd->method_return_type.type_id == Class_Type)
+			ret_type = mthd->method_return_type.class_id + "*";
+		else if (mthd->method_return_type.type_id == Int_Type)
+			ret_type = "int";
+		else
+			ret_type = "void";
+		
+		cout << "2 ret = " << ret_type << endl;
+
+		out << "((" << ret_type << "(*)()" << ")" << class_name << "->vmt[" << mthd->index << "])"<< "(" << class_name;
 	
 		if (arguments != NULL) {
 			ExprList::iterator it = arguments->begin();
-
+			out << ", ";
 			while (it != arguments->end()) {
 				Expr *expr = *it;
 				out << expr->gen_code();
@@ -879,6 +893,7 @@ gen_statement_code(MethodCallStatement) {
 					out << ",";
 			}
 		}
+		cout << "3" << endl;
 
 		out << ");" << endl;
 	} else {
@@ -898,6 +913,7 @@ gen_statement_code(MethodCallStatement) {
 		}
 
 		out << ");" << endl;
+	}
 	}
 	cout << "III" << endl;
 	
