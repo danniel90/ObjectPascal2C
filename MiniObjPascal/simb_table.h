@@ -11,15 +11,11 @@
 using namespace std;
 
 enum TypeID { Int_Type, Class_Type, Void_Type };
-
 enum Modifier { Virtual, Override, None };
-
-//class ClassDef;
 
 struct Type
 {
-	TypeID	 type_id;
-	//ClassDef *class_def;
+	TypeID type_id;
 	string class_id;
 };
 
@@ -41,6 +37,7 @@ typedef map<string, ParameterDef *>	ParameterDefMap;
 class MethodDef
 {
 public:
+	int		 index;
 	string		 method_name;
 	string		 classOwner;
 	Type		 method_return_type;
@@ -49,7 +46,7 @@ public:
 	ParameterDefMap	 *method_parameter_map;
 	Statement	 *method_body;
 
-	MethodDef(string name) { method_name = name; }
+	MethodDef(string name) { method_name = name; index = 0; }
 	~MethodDef()
 	{
 		if (method_parameter_list != 0) {
@@ -97,6 +94,7 @@ public:
 	MethodDefList   *virtualmethod_def_list;
 	MethodDefList   *overridemethod_def_list;
 
+	MethodDefMap 	*all_method_def_map;
 	MethodDefMap 	*method_def_map;
 
 	ClassDef() {

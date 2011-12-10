@@ -32,21 +32,24 @@ MethodDefMap *methods_map = NULL;
 VariableDefList *variables_list = NULL;
 VariableDefMap *variables_map = NULL;
 
+VariableDefList vars_list;
+VariableDefMap vars_map;
+
 ClassDefMap classes_map;
 
-void getVectorVirtuales(MethodDefVector *vector, MethodDefMap *mapa, string nom_clase) {
+void getVectorVirtuales(MethodDefVector *vector, MethodDefMap *mapa, string nom_clase, int idx) {
 	ClassDef *clase = classes_map[nom_clase];
 
 	if (clase->base.size() > 0) {
 		ClassDef *css = classes_map[clase->base];
-		getVectorVirtuales(vector, mapa,clase->base);
+		getVectorVirtuales(vector, mapa,clase->base, idx);
 	}
 
 	list<MethodDef*>::iterator it;
 	for (it = clase->virtualmethod_def_list->begin() ; it != clase->virtualmethod_def_list->end(); it++){
-		vector->push_back(*it);
 		MethodDef *tmp = *it;
-		cout << tmp->method_name << endl;
+		tmp->index = idx++;
+		vector->push_back(tmp);
 		(*mapa)[tmp->method_name] = (*clase->method_def_map)[tmp->method_name];
 	}
 }
@@ -194,10 +197,28 @@ gen_op_code(VarDecl) {
 			type.type_id = Void_Type;
 		}
 
-		VariableDef *var = new VariableDef(variable, type);
+		VariableDef *var = new VariableDef(var_name, type);
 
 		variables_list->push_back(var);
-		(*variables_map)[variable] = var;
+		(*variables_map)[var_name] = var;
+	} else {
+		Type type;
+		if (var_type_node != NULL){
+			if (var_type_node->getKind() == ClassType_kind){
+				type.class_id = type_name;
+				type.type_id = Class_Type;
+			} else {
+				type.class_id = "int";
+				type.type_id = Int_Type;
+			}
+		} else {
+			type.class_id = "void";
+			type.type_id = Void_Type;
+		}
+
+		VariableDef *var = new VariableDef(var_name, type);
+		vars_list.push_back(var);
+		vars_map[var_name] = var;
 	}
 
 	return out.str();
@@ -239,7 +260,7 @@ gen_op_code(MethodDecl) {
 	string this_param = class_name_actual + " *this";
 	if (param_decl_list_node != NULL){
 		param_list = param_decl_list_node->gen_op_code();
-		this_param += ",";
+		this_param += ", ";
 	}
 
 	if (modifier_list_node != NULL)
@@ -266,12 +287,11 @@ gen_op_code(MethodDecl) {
 			type.type_id = Void_Type;
 		}
 
-//		string c_method_name = class_name_actual + "_" + method_name;
 		MethodDef *method = new MethodDef(method_name);
 
 		enum Modifier mod = None;
 		if (modifier_list_node != NULL){
-			if (modifiers.compare("virtual")){//modifiers == "virtual"){
+			if (modifiers.compare("virtual")){
 				mod = Virtual;
 				virtualmethods_list->push_back(method);
 			} else {
@@ -288,7 +308,6 @@ gen_op_code(MethodDecl) {
 		method->method_parameter_map = params_map;
 		method->method_body = NULL;
 
-//		(*methods_map)[c_method_name] = method;
 		(*methods_map)[method_name] = method;
 	}
 
@@ -320,7 +339,7 @@ gen_op_code(ParameterDeclList) {
 gen_op_code(ParameterDecl) {//-----------------------------------------------------------------
 	string param_type = param_type_node->gen_op_code();
 
-	if ((params_list != NULL) && (params_map != NULL)){ //si no es nulo entonces estamos en declaracion de variables
+	if (params_map != NULL){ //si no es nulo entonces estamos en declaracion de variables
 		Type type;
 		if (param_type_node->getKind() == ClassType_kind){
 			param_name = "*" + param_name;
@@ -456,16 +475,22 @@ gen_op_code(ClassDeclaration) {
 
 	ClassDef *clase_actual = classes_map[class_name];
 
-	getVectorVirtuales(vector_virtuals, map_virtuals, class_name);
+
+	int index = 0;
+	getVectorVirtuales(vector_virtuals, map_virtuals, class_name, index);
 
 
-	if (clase_actual->overridemethod_def_list != NULL){
+	if (clase_actual->overridemethod_def_list != NULL) {
+		cout << "Overriding methods!!" << endl;
+
 		list<MethodDef*>::iterator it;
 		for (it = clase_actual->overridemethod_def_list->begin(); it != clase_actual->overridemethod_def_list->end(); it++){
 			MethodDef *tmp = *it;
+			cout << tmp->method_name << endl;
 			(*map_virtuals)[tmp->method_name] = tmp;
 		}
 	}
+	clase_actual->all_method_def_map = map_virtuals;
 
 	string vmt_var = "";
 
@@ -481,11 +506,10 @@ gen_op_code(ClassDeclaration) {
 		<< "} " << class_name << ";" << endl
 		<< methods <<  endl << endl;
 
-
 	out	<< clase_actual->name << " *" << clase_actual->name << "_Create(){" << endl
 		<< clase_actual->name << " *tmp = (" << clase_actual->name << "*) malloc(sizeof(" << clase_actual->name << "));" << endl;
 
-	if (inherits_node != NULL){
+	if (inherits_node != NULL) {
 		out	<< clase_actual->base << " *e = " << clase_actual->base << "_Create();" << endl
 			<< "tmp->parent = *e;" << endl
 			<< clase_actual->base << "_Free(e);" << endl;
@@ -798,22 +822,84 @@ gen_statement_code(AssignStatement) {
 
 gen_statement_code(MethodCallStatement) {
 	ostringstream out;
-	
-	out << class_name << "_" << method_name << "(";
-	
-	if (arguments != NULL) {
-		ExprList::iterator it = arguments->begin();
 
-		while (it != arguments->end()) {
-			Expr *expr = *it;
-			out << expr->gen_code();
-			it++;
-			if (it != arguments->end())
-				out << ",";
-		}
+	cout << "class_name = " << class_name << " | method_name = " << method_name << endl;
+	VariableDef *var = vars_map[class_name];
+	cout << "I" << endl;
+
+	ClassDef *clss = classes_map[var->variable_type.class_id];
+	MethodDef *mthd = (*clss->all_method_def_map)[method_name];
+	
+	MethodDefMap::iterator it;
+	for (it = clss->method_def_map->begin(); it != clss->method_def_map->end(); it++){
+		cout << (*it).first << endl;
+		cout << (*it).second << endl;
 	}
 
-	out << ");" << endl;
+	if (mthd != NULL)
+	if (mthd->modifier == Virtual) {
+		cout << "1 vr name = " << mthd->method_name << endl;
+		string ret_type = "void";
+
+		if (mthd->method_return_type.type_id == Class_Type)
+			ret_type = mthd->method_return_type.class_id + "*";
+		else if (mthd->method_return_type.type_id == Int_Type)
+			ret_type = "int";
+		
+		cout << "2 ret = " << ret_type << endl;
+
+		out << "((" << ret_type << "(*)()" << ")" << class_name << "->vmt[" << mthd->index << "])"<< "(" << class_name;
+	
+		if (arguments != NULL) {
+			ExprList::iterator it = arguments->begin();
+			out << ", ";
+			while (it != arguments->end()) {
+				Expr *expr = *it;
+				out << expr->gen_code();
+				it++;
+				if (it != arguments->end())
+					out << ",";
+			}
+		}
+		cout << "3" << endl;
+
+		out << ");" << endl;
+	} else if (mthd->modifier == Override) {
+		cout << "ovr" << endl;
+		out << var->variable_type.class_id << "_" << method_name << "(";
+	
+		if (arguments != NULL) {
+			ExprList::iterator it = arguments->begin();
+
+			while (it != arguments->end()) {
+				Expr *expr = *it;
+				out << expr->gen_code();
+				it++;
+				if (it != arguments->end())
+					out << ",";
+			}
+		}
+
+		out << ");" << endl;
+	} else {
+		cout << "none" << endl;
+		out << var->variable_type.class_id << "_" << method_name << "(";
+	
+		if (arguments != NULL) {
+			ExprList::iterator it = arguments->begin();
+
+			while (it != arguments->end()) {
+				Expr *expr = *it;
+				out << expr->gen_code();
+				it++;
+				if (it != arguments->end())
+					out << ",";
+			}
+		}
+
+		out << ");" << endl;
+	}
+	cout << "III" << endl;
 	
 	return out.str();
 }
@@ -821,7 +907,7 @@ gen_statement_code(MethodCallStatement) {
 gen_statement_code(IfStatement) {
 	string val = condition->gen_code();
 	string code1 = st1->gen_statement_code();
-	string code2 = st2 != NULL? st2->gen_statement_code() : "";
+	string code2 = st2 != NULL ? st2->gen_statement_code() : "";
 	ostringstream out;
 	
 	out << "if (" << val << ") {" << endl;

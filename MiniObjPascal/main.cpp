@@ -48,6 +48,7 @@ int main(int argc, char **argv)
 		cout << program_node->gen_op_code() << endl;
 		cout << "int main() {" << endl;
 		cout << program_node->block->gen_statement_code();
+		cout << "return 0;" << endl;
 		cout << "}" << endl;
 	}
 }

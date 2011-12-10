@@ -164,7 +164,7 @@ opt_else:			KW_ELSE block							{ $$ = $2; }
 while_statement:		KW_WHILE expr KW_DO block ';'					{ $$ = new WhileStatement($2, $4); }
 ;
 
-method_call:			ID '.' ID opt_arguments ';'					{ $$ = new MethodCallStatement($1, $3, $4); }
+method_call:			ID '.' ID opt_arguments ';'					{ cout << "class_name = " << $1 << endl; $$ = new MethodCallStatement($1, $3, $4); }
 ;
 
 opt_arguments: 			'(' arguments ')'						{ $$ = $2; }
